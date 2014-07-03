@@ -1,0 +1,168 @@
+doctype 5
+html(lang="ja")
+  head
+    meta(charset="utf-8")
+    meta(http-equiv="X-UA-Compatible", content="IE=edge,chrome=1")
+    meta(name="viewport", content="width=device-width")
+    title= title
+    link(rel='stylesheet', href='/stylesheets/normalize.css')
+    script(src='https://dl.dropboxusercontent.com/u/265158/socket.io.js')
+    script(src='https://dl.dropboxusercontent.com/u/265158/webrtc.io.js')
+    script(src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js")
+    :less
+      @column_left_width: 150px;
+      #column_left{
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        @game_width: @column_left_width;
+        @game_height: 200px;
+        #gamepad{
+          position: absolute;
+          top: 0px;
+          left: 0px;
+          #forward, #left, #right, #back{
+            position: absolute;
+            top: 0px;
+            left: 0px;
+          }
+          #forward{
+            width: @game_width /2;
+            height: @game_height / 2;
+          }
+          #left{
+            top: @game_height / 2;
+            width: @game_width / 2;
+            height: @game_height / 2;
+          }
+          #right{
+            top: @game_height / 2;
+            left: @game_width / 2;
+            width: @game_width / 2;
+            height: @game_height / 2;
+          }
+          #back{
+            top: 0;
+            left: @game_width / 2;
+            width: @game_width / 2;
+            height: @game_height / 2;
+          }
+        }
+        #chat{
+          position: absolute;
+          top: @game_height;
+          left: 0px;
+          #yes, #no, #question{
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: @column_left_width / 3;
+            height: 100px;
+          }
+          #no{
+            left: @column_left_width / 3;
+          }
+          #question{
+            left: @column_left_width * 2 / 3;
+          }
+          #textinput{
+            position: absolute;
+            padding: 0px;
+            top: 100px;
+            left: 0px;
+            width: @column_left_width;
+            height: 180px;
+          }
+          #cleartext{
+            position: absolute;
+            top: 230px;
+            left: 100px;
+            width: 50px;
+            height: 50px;
+          }
+        }
+      }
+      #column_right{
+        position: absolute;
+        top: 0px;
+        left: 150px;
+        #videoView{
+          position: absolute;
+          top: 0px;
+          left: 0px;
+          #remote, #local{
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            border: 1px solid black;
+          }
+          #remote{
+            width: 640px;
+            height: 480px;
+          }
+          #local{
+            width: 160px;
+            height: 120px;
+          }
+        }
+      }
+      #remotecursor{
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: red;
+      }
+  body
+    #column_left
+      #gamepad
+        input(type="button", value="↑", id="forward")
+        input(type="button", value="↓", id="back")
+        input(type="button", value="←", id="left")
+        input(type="button", value="→", id="right")
+      #chat
+        input(type="button", value="YES", id="yes")
+        input(type="button", value="?", id="question")
+        input(type="button", value="NO", id="no")
+        textarea(id="textinput", rows="4", cols="40")
+        input(type="button", value="clear", id="cleartext")
+    #column_right
+      #videoView
+        video(id="remote", autoplay="autoplay", width="320", height="240")
+        video(id="local", autoplay="autoplay", width="320", height="240")
+    #remotecursor
+    :coffeescript
+      $ ->
+        rtc.connect("ws://duxca.com:8001")
+        rtc.createStream {"video": true, "audio": false}, (stream)->
+          rtc.attachStream(stream, 'local')
+        rtc.on 'add remote stream', (stream)->
+          rtc.attachStream(stream, 'remote')
+
+        window.socket = io.connect('http://duxca.com:3000')
+        socket.on "forward", (data)-> remoteClick("#forward")
+        socket.on "left", (data)-> remoteClick("#left")
+        socket.on "right", (data)-> remoteClick("#right")
+        socket.on "back", (data)-> remoteClick("#back")
+        socket.on "yes", (data)-> remoteClick("#yes")
+        socket.on "no", (data)-> remoteClick("#no")
+        socket.on "question", (data)-> remoteClick("#question")
+        socket.on "textinput", (data)-> $("#textinput").val(data.value)
+        socket.on "mousemove", (data)-> $("#remotecursor").css({top: data.y+"px", left: data.x+"px"})
+        remoteClick = (type)->
+          $(type).css("outline", "2px solid orange")
+          after = -> $(type).css("outline", "inherit")
+          setTimeout(after, 500;)
+        
+        $("#forward").click -> socket.emit("broadcast", {ID: "forward"})
+        $("#left").click ->    socket.emit("broadcast", {ID: "left"})
+        $("#right").click ->   socket.emit("broadcast", {ID: "right"})
+        $("#back").click ->    socket.emit("broadcast", {ID: "back"})
+        $("#yes").click ->    socket.emit("broadcast", {ID: "yes"})
+        $("#no").click ->    socket.emit("broadcast", {ID: "no"})
+        $("#question").click ->    socket.emit("broadcast", {ID: "question"})
+        $("#cleartext").click -> $("#textinput").val("")
+        $("#textinput").keyup -> socket.emit("broadcast", {ID: "textinput", value: $("#textinput").val()})
+        ###
+        $("body").mousemove (e)-> socket.emit("broadcast", {ID: "mousemove", x: e.pageX, y: e.pageY})
+        ###
+    block content

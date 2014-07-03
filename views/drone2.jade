@@ -1,0 +1,100 @@
+extends layout
+
+block content
+  :less
+    *:not(input) {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    body{
+      position:absolute;
+      width:100%;
+      height:100%;
+    }
+    #eyeL{
+      .eye;
+      right: 0px;
+    }
+    #eyeR{
+      .eye;
+      left: 0px;
+    }
+    .eye{
+      zoom:2;
+      position:absolute;
+      bottom:0px;
+      background-image: url("https://dl.dropboxusercontent.com/u/265158/blink.png");
+      width: 178px;
+      height:178px;
+    }
+    .semiClosed{
+      background-position:356px 0px;
+    }
+    .closed{
+      background-position:178px 0px;
+    }
+  script(src='https://dl.dropboxusercontent.com/u/265158/socket.io.js')
+  script(src='https://dl.dropboxusercontent.com/u/265158/webrtc.io.js')
+  script(src='https://dl.dropboxusercontent.com/u/265158/camera.js')
+  script(src='http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js')
+
+  input#clickToPlay(type='button', value='Click To Ready...')
+  #eyeL
+  #eyeR
+
+  :coffeescript
+    $ ->
+
+      rtc.connect("ws://duxca.com:8001")
+      rtc.createStream {"video": true, "audio": false}, (stream)->
+      
+      socket = io.connect('http://duxca.com:3000')
+          
+      $("#clickToPlay").click ->
+        leftaudio = new Audio
+        leftaudio.src = "https://dl.dropboxusercontent.com/u/265158/l.wav"
+        leftaudio.load()
+        rightaudio = new Audio
+        rightaudio.src = "https://dl.dropboxusercontent.com/u/265158/r.wav"
+        rightaudio.load()
+        img = new Image
+        img.src = "https://dl.dropboxusercontent.com/u/265158/blink.png"
+          
+        socket.on "broadcast", (data)->
+          if data.type is "blink"
+            if data.blink is "left"
+              play("#eyeL")
+              leftaudio.play()
+            else if data.blink is "right"
+              play("#eyeR")
+              rightaudio.play()
+
+
+      $("body").bind "touchmove", (e)->
+        e.preventDefault()
+        socket.emit("broadcast", {
+          type: "touch"
+          touches: (for touch in e.originalEvent.touches
+            x: touch.pageX/$(window).width()
+            y: touch.pageY/$(window).height()
+          )	
+        })
+
+
+      play = (str)->
+        $eye = $(str)
+        setTimeout((->
+          $eye.css({"background-position": "178px 0px"})
+        ), 100)
+        setTimeout((->
+          $eye.css({"background-position": "  0px 0px"})
+        ), 200)
+          
+
+    
+
+
+
+
+

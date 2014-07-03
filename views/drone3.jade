@@ -1,0 +1,114 @@
+doctype 5
+html(lang="ja")
+  head
+    meta(charset="utf-8")
+    meta(http-equiv="X-UA-Compatible", content="IE=edge,chrome=1")
+    meta(name="viewport", content="width=device-width")
+    title= title
+    link(rel='stylesheet', href='/stylesheets/normalize.css')
+    :less
+      *:not(input) {
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      body{
+        position:absolute;
+        width:100%;
+        height:100%;
+      }
+      #clickToPlay{
+        display: block;
+        margin: 150px auto;
+        font-size: 2em;
+      }
+      #eyeL{
+        .eye;
+        right: 0px;
+      }
+      #eyeR{
+        .eye;
+        left: 0px;
+      }
+      .hide { display: none; }
+      .eye{
+        zoom:1.5;
+        position:absolute;
+        bottom:0px;
+        background-image: url("https://dl.dropboxusercontent.com/u/265158/blink.png");
+        width: 178px;
+        height:178px;
+      }
+       #remote{
+        position: absolute;
+        top: 0px; left: 0px;
+        width: 100%;
+      }
+      .semiClosed{ background-position:356px 0px; }
+      .closed{ background-position:178px 0px; }
+    script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js")
+    script(src="/socket.io/socket.io.js")
+    script(src="/javascripts/webrtc.io.js")
+    script(src="/javascripts/camera.js")
+  body
+    #page0
+      input#clickToPlay(type='button', value='Click To Ready...')
+    #page1.hide
+      video#remote(autoplay="autoplay")
+      #eyeL
+      #eyeR
+    :coffeescript
+      uid = null
+
+      socket = io.connect('http://duxca.com:3000')
+      socket.on "OnConnect", (data)->
+        console.log data
+        uid = data.UID
+
+      socket.on "OnEyeBlink", (data)->
+        console.log data
+        if data.eye is "left"
+          leftaudio.play()
+          play("#eyeL")
+        else if data.eye is "right"
+          rightaudio.play()
+          play("#eyeR")
+
+      rtc.connect("ws://duxca.com:8001")
+      rtc.createStream {"video": true, "audio": false}, (stream)->
+        rtc.attachStream(stream, 'local')
+      rtc.on 'add remote stream', (stream)->
+        rtc.attachStream(stream, 'remote')
+
+
+      leftaudio = new Audio
+      rightaudio = new Audio
+      $("#clickToPlay").click ->
+        $("#page0").addClass("hide")
+        $("#page1").removeClass("hide")
+        leftaudio.src = "https://dl.dropboxusercontent.com/u/265158/l.wav"
+        leftaudio.load()
+        rightaudio.src = "https://dl.dropboxusercontent.com/u/265158/r.wav"
+        rightaudio.load()
+
+      $("#remote").bind "touchmove", (e)->
+        e.preventDefault()
+        offset = $(event.target).offset()
+        socket.emit("broadcast", {
+          ID: "OnTouchMove"
+          Sender: uid
+          touches: (for touch in e.originalEvent.touches
+            x: (touch.pageX - offset.left)/$(event.target).width()
+            y: (touch.pageY - offset.top)/$(event.target).height()
+          ) 
+        })
+
+
+      play = (str)->
+        $eye = $(str)
+        setTimeout((->
+          $eye.css({"background-position": "178px 0px"})
+        ), 100)
+        setTimeout((->
+          $eye.css({"background-position": "  0px 0px"})
+        ), 200)
